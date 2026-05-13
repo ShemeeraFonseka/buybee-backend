@@ -60,3 +60,5 @@ mongoose
     console.error("❌ MongoDB connection error:", err.message);
     process.exit(1);
   });
+
+export default app;
