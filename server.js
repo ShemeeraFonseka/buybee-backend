@@ -13,6 +13,8 @@ import authRouter from "./routes/auth.js";
 import usersRouter from "./routes/users.js";
 import currenciesRouter from "./routes/currencies.js";
 import posRouter from "./routes/pos.js";
+import contactContentRouter from "./routes/contactContent.js";
+import aboutContentRouter from "./routes/aboutContent.js";
 import { protect } from "./middleware/auth.js";
 
 dotenv.config();
@@ -58,6 +60,8 @@ app.use("/api/content", contentRouter);
 app.use("/api/products", productsRouter);
 app.use("/api/orders", ordersRouter);
 app.use("/api/currencies", currenciesRouter);
+app.use("/api/contact-content", contactContentRouter);
+app.use("/api/about-content", aboutContentRouter);
 
 /* ── Protected routes ── */
 app.use("/api/upload", protect, uploadRouter);
