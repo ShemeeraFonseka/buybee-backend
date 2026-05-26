@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const OrderItemSchema = new mongoose.Schema(
   {
-    productId: { type: String, default: "" }, // store as string — avoids ObjectId cast errors
+    productId: { type: String, default: "" },
     title: { type: String, required: true },
     image: { type: String, default: "" },
     price: { type: Number, required: true },
@@ -60,11 +60,40 @@ const OrderSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-/* Auto-generate order number before save */
+/* ─── Generate unique order number with retry on duplicate ─── */
+async function generateOrderNumber() {
+  const Order = mongoose.model("Order");
+  let attempts = 0;
+
+  while (attempts < 10) {
+    // Use max orderNumber to determine next — immune to deletions/race conditions
+    const last = await Order.findOne({ orderNumber: { $exists: true } })
+      .sort({ orderNumber: -1 })
+      .select("orderNumber")
+      .lean();
+
+    let next = 1;
+    if (last?.orderNumber) {
+      const num = parseInt(last.orderNumber.replace("BB-", ""), 10);
+      if (!isNaN(num)) next = num + 1;
+    }
+
+    const candidate = `BB-${String(next).padStart(5, "0")}`;
+
+    // Check it doesn't already exist
+    const exists = await Order.exists({ orderNumber: candidate });
+    if (!exists) return candidate;
+
+    attempts++;
+  }
+
+  // Final fallback — use timestamp to guarantee uniqueness
+  return `BB-${Date.now()}`;
+}
+
 OrderSchema.pre("save", async function () {
   if (!this.orderNumber) {
-    const count = await mongoose.model("Order").countDocuments();
-    this.orderNumber = `BB-${String(count + 1).padStart(5, "0")}`;
+    this.orderNumber = await generateOrderNumber();
   }
 });
 

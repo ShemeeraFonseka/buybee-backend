@@ -184,10 +184,32 @@ router.post("/sale", async (req, res) => {
     const change =
       paymentMethod === "cash" ? Math.max(0, Number(amountPaid) - total) : 0;
 
+    /* ── Generate unique order number before transaction to avoid duplicate key error ── */
+    let orderNumber;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const last = await Order.findOne({ orderNumber: { $exists: true } })
+        .sort({ orderNumber: -1 })
+        .select("orderNumber")
+        .lean();
+      let next = 1;
+      if (last?.orderNumber) {
+        const n = parseInt(last.orderNumber.replace("BB-", ""), 10);
+        if (!isNaN(n)) next = n + 1;
+      }
+      const candidate = `BB-${String(next).padStart(5, "0")}`;
+      const exists = await Order.exists({ orderNumber: candidate });
+      if (!exists) {
+        orderNumber = candidate;
+        break;
+      }
+    }
+    if (!orderNumber) orderNumber = `BB-${Date.now()}`;
+
     /* ── Create order ── */
     const [order] = await Order.create(
       [
         {
+          orderNumber,
           customer: {
             firstName: customerName.split(" ")[0] || "POS",
             lastName: customerName.split(" ").slice(1).join(" ") || "Customer",
